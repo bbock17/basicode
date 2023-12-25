@@ -32,6 +32,7 @@ public class UserInterface extends javax.swing.JFrame {
         cp.add(bc);
         Dimension size = new Dimension(BasicContainer.WIDTH + 16, BasicContainer.HEIGHT + jMenuBar1.getHeight() + 39);
         setSize(size);
+        addKeyListener(bc.makeKeyListener());
     }
 
     /**
