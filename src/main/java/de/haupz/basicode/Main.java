@@ -3,7 +3,6 @@ package de.haupz.basicode;
 import de.haupz.basicode.ast.ProgramNode;
 import de.haupz.basicode.interpreter.Configuration;
 import de.haupz.basicode.interpreter.InterpreterState;
-import de.haupz.basicode.ui.BasicFrame;
 import de.haupz.basicode.parser.BasicParser;
 import de.haupz.basicode.ui.BasicContainer;
 
@@ -30,7 +29,8 @@ public class Main {
     /**
      * The main frame for the GUI component.
      */
-    static BasicFrame bf;
+//    static BasicFrame bf;
+    static UserInterface ui;
 
     /**
      * Run a BASICODE program.
@@ -48,6 +48,26 @@ public class Main {
         state.closeFiles();
     }
 
+    /**
+     * Executes a BASICODE program from a file.
+     * 
+     * @param filename the filename of the BASICODE program
+     * @param configuration the configuration for the interpreter
+     * @throws Throwable in case anything goes wrong
+     */
+    public static void execBasiCode(String filename, Configuration configuration) throws Throwable {
+            Path path = Paths.get(filename);
+            List<String> sourceLines = Files.readAllLines(path);
+            String source = sourceLines.stream().collect(Collectors.joining("\n"));
+            run(source, configuration);
+    }
+    
+    /**
+     * The main method.
+     * 
+     * @param args commandline arguments
+     * @throws Throwable in case anything goes wrong
+     */
     public static void main(String[] args) throws Throwable {
         boolean nowait = false;
         boolean nosound = false;
@@ -64,23 +84,21 @@ public class Main {
 
         Configuration configuration = new Configuration(nowait, nosound, hold);
 
-        if (filename.isEmpty()) {
-            throw new IllegalStateException("no file given");
-        }
-        Path path = Paths.get(filename);
-        List<String> sourceLines = Files.readAllLines(path);
-        String source = sourceLines.stream().collect(Collectors.joining("\n"));
-
         bc = new BasicContainer();
         SwingUtilities.invokeLater(() -> {
-            bf = new BasicFrame(bc);
-            bf.setVisible(true);
+//            bf = new BasicFrame(bc);
+//            bf.setVisible(true);
+            ui = new UserInterface(bc);
+            ui.setVisible(true);
         });
 
-        run(source, configuration);
-        System.out.println("done.");
-        bc.shutdown();
-        bf.dispose();
+        if (!filename.isEmpty()) {
+            execBasiCode(filename, configuration);
+            System.out.println("done.");
+            bc.shutdown();
+//        bf.dispose();
+//        ui.dispose();
+        }
     }
 
 }

@@ -1,0 +1,475 @@
+options {
+  IGNORE_CASE = true;
+  STATIC = false;
+}
+
+PARSER_BEGIN(BasicParser)
+package de.haupz.basicode.parser;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import de.haupz.basicode.ast.*;
+
+public class BasicParser {
+    List<Object> dataList = new ArrayList<>();
+}
+PARSER_END(BasicParser)
+
+// Lexer.
+
+SKIP: {
+    " "
+}
+
+TOKEN: {
+    < EOL: "\n" >
+// numbers and other values
+|   < NUMBER: (<DIGIT>)+ >
+|   < FLOAT: (<NUMBER>)? "." <NUMBER> (("E"|"e") ("-")? <NUMBER>)? >
+|   < DIGIT: ["0"-"9"] >
+|   < STRING: "\"" (~["\"","\n"])* "\"" >
+// keywords
+|   < ABS: "ABS" > | < AND: "AND" > | < ASC: "ASC" > | < ATN: "ATN" >
+|   < CHRS: "CHR$" > | < COS: "COS" >
+|   < DATA: "DATA" > | < DEF: "DEF" > | < DIM: "DIM" >
+|   < END: "END" >
+|   < FN: "FN"> | < FOR: "FOR" >
+|   < GOSUB: "GOSUB" > | < GOTO: "GOTO" >
+|   < INT: "INT" > | < IF: "IF" > | < INPUT: "INPUT" >
+|   < LEFTS: "LEFT$" > | < LEN: "LEN" > | < LET: "LET" > | < LOG: "LOG" >
+|   < MIDS: "MID$" >
+|   < NEXT: "NEXT" > | < NOT: "NOT" >
+|   < ON: "ON" > | < OR: "OR" >
+|   < PRINT: "PRINT" >
+|   < READ: "READ" > | < REM: "REM" (~["\n"])* > // REM is special: it consumes all characters until the end of the line
+|   < RESTORE: "RESTORE" > | < RETURN: "RETURN" > | < RIGHTS: "RIGHT$" > | < RUN: "RUN" >
+|   < SGN: "SGN" > | < SIN: "SIN" > | < SQR: "SQR" > | < STEP: "STEP" > | < STOP: "STOP" >
+|   < TAB: "TAB" > | < TAN: "TAN" > | < THEN: "THEN" > | < TO: "TO" >
+|   < VAL: "VAL" >
+// identifiers
+|   < IDENTIFIER: ["a"-"z","A"-"Z"] (["a"-"z","A"-"Z","0"-"9"])? ("$")? >
+|   < FNIDENTIFIER: "FN" ["a"-"z","A"-"Z"] (["a"-"z","A"-"Z","0"-"9"])? >
+}
+
+// Parser.
+
+//
+// basic structures
+//
+
+ProgramNode program():
+{
+    List<LineNode> lines = new ArrayList<>();
+    LineNode l;
+}
+{
+    (l = line() { lines.add(l); })*
+    { return new ProgramNode(lines, dataList); }
+}
+
+LineNode line():
+{
+    List<StatementNode> statements = new ArrayList<>();
+    int num;
+    StatementNode st;
+}
+{
+    num = lineNumber()
+    (
+        st = data_line() { statements.add(st); }
+    |   st = statement() { statements.add(st); } ((":")+ st = statement() { statements.add(st); })*
+    )
+    (<EOL>|<EOF>)
+    { return new LineNode(num, statements); }
+}
+
+int lineNumber():
+{
+    Token n;
+}
+{
+    n = <NUMBER> { return Integer.parseInt(n.image); }
+}
+
+//
+// statements
+//
+
+StatementNode statement():
+{
+    Token t;
+    ExpressionNode e;
+    StatementNode s;
+    int n;
+}
+{
+    t = <REM> { return new RemNode(t.image); }
+|   s = assignment() { return s; }
+|   s = print_statement() { return s; }
+|   <GOTO> n = lineNumber() { return new GotoNode(n); }
+|   <GOSUB> n = lineNumber() { return new GosubNode(n); }
+|   <RETURN> { return new ReturnNode(); }
+|   s = dependent_jump() { return s; }
+|   s = dim_statement() { return s; }
+|   s = for_statement() { return s; }
+|   <NEXT> t = <IDENTIFIER> { return new NextNode(t.image); }
+|   s = if_statement() { return s; }
+|   s = read_statement() { return s; }
+|   <RESTORE> { return new RestoreNode(); }
+|   (<END>|<STOP>) { return new EndNode(); }
+|   <INPUT> t = <IDENTIFIER> { return new InputNode(t.image); }
+|   <RUN> { return new RunNode(); }
+|   s = def_fn() { return s; }
+}
+
+StatementNode data_line():
+{
+    Object l;
+    List<Object> items = new ArrayList<>();
+}
+{
+    <DATA> l = data_literal() { items.add(l); } ( "," l = data_literal() { items.add(l); } )*
+    {
+        dataList.addAll(items);
+        return new DataNode(items);
+    }
+}
+
+Object data_literal():
+{
+    int sgn = 1;
+    Token t;
+}
+{
+    ( ("-" { sgn = -1; })? (t = <NUMBER> | t = <FLOAT>) { return sgn * Double.parseDouble(t.image); } )
+|   t = <STRING> { return t.image.substring(1, t.image.length() - 1); }
+}
+
+StatementNode assignment():
+{
+    LetNode.LHS l;
+    ExpressionNode e = null;
+}
+{
+    (<LET>)? l = lhs() "=" e = expression() { return new LetNode(l, e); }
+}
+
+LetNode.LHS lhs():
+{
+    Token t;
+    ExpressionNode e = null;
+    ExpressionNode f = null;
+}
+{
+    t = <IDENTIFIER>
+    ( "(" e = expression() ("," f = expression())? ")" { return new LetNode.Array(t.image, e, f); } )?
+    { return new LetNode.Variable(t.image); }
+}
+
+StatementNode print_statement():
+{
+    Token t;
+    PrintNode.Element elem;
+    List<PrintNode.Element> elements = new ArrayList<>();
+}
+{
+    <PRINT>
+    (
+        elem = print_element() { elements.add(elem); }
+        (
+            LOOKAHEAD(2)
+            (t=","|t=";") { elements.add(new PrintNode.Element(PrintNode.ElementType.SEPARATOR, t.image)); }
+            elem = print_element() { elements.add(elem); }
+        )*
+        (t=";" { elements.add(new PrintNode.Element(PrintNode.ElementType.SEPARATOR, t.image)); } )?
+    )?
+    {
+        return new PrintNode(elements);
+    }
+}
+
+PrintNode.Element print_element():
+{
+    ExpressionNode e;
+}
+{
+    e = expression() { return new PrintNode.Element(PrintNode.ElementType.EXPRESSION, e); }
+|   <TAB> "(" e = expression() ")" { return new PrintNode.Element(PrintNode.ElementType.TAB, e); }
+}
+
+StatementNode dim_statement():
+{
+    DimCreateNode d;
+    List<DimCreateNode> dims = new ArrayList<>();
+}
+{
+    <DIM> d = one_dim() { dims.add(d); } ("," d = one_dim() { dims.add(d); })*
+    { return new DimNode(dims); }
+}
+
+DimCreateNode one_dim():
+{
+    Token t;
+    ExpressionNode d1 = null;
+    ExpressionNode d2 = null;
+}
+{
+    t = <IDENTIFIER> "(" d1 = expression() ("," d2 = expression())? ")"
+    { return new DimCreateNode(t.image, d1, d2); }
+}
+
+StatementNode dependent_jump():
+{
+    ExpressionNode e;
+    boolean isGosub = false;
+    List<Integer> targets = new ArrayList<>();
+    int n;
+}
+{
+    <ON> e = expression()
+    ( <GOTO> | <GOSUB> { isGosub = true; } )
+    n = lineNumber() { targets.add(n); } ( "," n = lineNumber() { targets.add(n); } )*
+    { return isGosub ? new OnGosubNode(e, targets) : new OnGotoNode(e, targets); }
+}
+
+StatementNode for_statement():
+{
+    Token t;
+    ExpressionNode e;
+    ExpressionNode f;
+    ExpressionNode g = null;
+}
+{
+    <FOR> t = <IDENTIFIER> "=" e = expression() <TO> f = expression() ( <STEP> g = expression() )?
+    { return new ForNode(t.image, e, f, g); }
+}
+
+StatementNode if_statement():
+{
+    ExpressionNode e;
+    int l;
+    StatementNode s = null;
+}
+{
+    <IF> e = expression()
+    (
+        <THEN>
+        (
+            l = lineNumber() { s = new GotoNode(l); }
+        |   s = statement()
+        )
+    |   <GOTO> l = lineNumber() { s = new GotoNode(l); }
+    )
+    { return new IfThenNode(e, s); }
+}
+
+StatementNode read_statement():
+{
+    LetNode.LHS l;
+    List<LetNode.LHS> lhss = new ArrayList<>();
+}
+{
+    <READ> l = lhs() { lhss.add(l); } ( "," l = lhs() { lhss.add(l); } )*
+    { return new ReadNode(lhss); }
+}
+
+StatementNode def_fn():
+{
+    String f;
+    Token u;
+    ExpressionNode e;
+}
+{
+    <DEF> f = fn_id() "(" u = <IDENTIFIER> ")" "=" e = expression() { return new DefFnNode(f, u.image, e); }
+}
+
+String fn_id():
+{
+    Token t;
+}
+{
+    (
+        <FN> t = <IDENTIFIER> { return t.image; }
+    |   t = <FNIDENTIFIER> { return t.image.substring(2, t.image.length()); }
+    )
+}
+
+//
+// expressions
+//
+
+ExpressionNode expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = and_expression() ( <OR> f = and_expression() { e = new OrNode(e, f); } )*
+    { return e; }
+}
+
+ExpressionNode and_expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = equality_expression() ( <AND> f = equality_expression() { e = new AndNode(e, f); } )*
+    { return e; }
+}
+
+ExpressionNode equality_expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = relational_expression()
+    (
+        "=" f = relational_expression() { return new EqNode(e, f); }
+    |   "<>" f = relational_expression() { return new NeqNode(e, f); }
+    )?
+    { return e; }
+}
+
+ExpressionNode relational_expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = additive_expression()
+    (
+        "<" f = additive_expression() { return new LtNode(e, f); }
+    |   "<=" f = additive_expression() { return new LeqNode(e, f); }
+    |   ">" f = additive_expression() { return new GtNode(e, f); }
+    |    ">=" f = additive_expression() { return new GeqNode(e, f); }
+    )?
+    { return e; }
+}
+
+ExpressionNode additive_expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = multiplicative_expression()
+    (
+        "+" f = multiplicative_expression() { e = new AddNode(e, f); }
+    |   "-" f = multiplicative_expression() { e = new SubtractNode(e, f); }
+    )*
+    { return e; }
+}
+
+ExpressionNode multiplicative_expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = power_expression()
+    (
+        "*" f = power_expression() { e = new MultiplyNode(e, f); }
+    |   "/" f = power_expression() { e = new DivideNode(e, f); }
+    )*
+    { return e; }
+}
+
+ExpressionNode power_expression():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+}
+{
+    e = unary_expression()
+    (
+        "^" f = unary_expression() { e = new PowerNode(e, f); }
+    )*
+    { return e; }
+}
+
+ExpressionNode unary_expression():
+{
+    ExpressionNode e;
+}
+{
+    "-" e = unary_expression() { return new NegateNode(e); }
+|   e = unary_expression_not_plus_minus() { return e; }
+}
+
+ExpressionNode unary_expression_not_plus_minus():
+{
+    ExpressionNode e;
+}
+{
+    <NOT> e = unary_expression() { return new NotNode(e); }
+|   e = primary_expression() { return e; }
+}
+
+ExpressionNode primary_expression():
+{
+    ExpressionNode e;
+    Token t;
+}
+{
+    e = literal() { return e; }
+|   "(" e = expression() ")" { return e; }
+|   e = builtin_call() { return e; }
+|   e = fn_call() { return e; }
+|   e = varOrDimAccess() { return e; }
+}
+
+ExpressionNode literal():
+{
+    Token t;
+}
+{
+    (t = <NUMBER> | t = <FLOAT>) { return new DoubleNode(Double.parseDouble(t.image)); }
+|   t = <STRING> { return new StringNode(t.image.substring(1, t.image.length() - 1)); }
+}
+
+ExpressionNode varOrDimAccess():
+{
+    Token t;
+    ExpressionNode e = null;
+    ExpressionNode f = null;
+}
+{
+    t = <IDENTIFIER> ( "(" e = expression() ("," f = expression())? ")" { return new DimAccessNode(t.image, e, f); } )?
+    { return new VarNode(t.image); }
+}
+
+ExpressionNode builtin_call():
+{
+    ExpressionNode e;
+    ExpressionNode f;
+    ExpressionNode g;
+}
+{
+    <ABS> "(" e = expression() ")" { return new AbsNode(e); }
+|   <ASC> "(" e = expression() ")" { return new AscNode(e); }
+|   <ATN> "(" e = expression() ")" { return new AtnNode(e); }
+|   <CHRS> "(" e = expression() ")" { return new ChrsNode(e); }
+|   <COS> "(" e = expression() ")" { return new CosNode(e); }
+|   <INT> "(" e = expression() ")" { return new IntNode(e); }
+|   <LEFTS> "(" e = expression() "," f = expression() ")" { return new LeftsNode(e, f); }
+|   <LEN> "(" e = expression() ")" { return new LenNode(e); }
+|   <MIDS> "(" e = expression() "," f = expression() "," g = expression() ")" { return new MidsNode(e, f, g); }
+|   <RIGHTS> "(" e = expression() "," f = expression() ")" { return new RightsNode(e, f); }
+|   <SGN> "(" e = expression() ")" { return new SgnNode(e); }
+|   <SIN> "(" e = expression() ")" { return new SinNode(e); }
+|   <SQR> "(" e = expression() ")" { return new SqrNode(e); }
+|   <TAN> "(" e = expression() ")" { return new TanNode(e); }
+|   <VAL> "(" e = expression() ")" { return new ValNode(e); }
+}
+
+ExpressionNode fn_call():
+{
+    String f;
+    ExpressionNode e;
+}
+{
+    f = fn_id() "(" e = expression() ")" { return new FnCallNode(f, e); }
+}
