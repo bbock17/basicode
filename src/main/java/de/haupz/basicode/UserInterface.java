@@ -45,39 +45,60 @@ public class UserInterface extends javax.swing.JFrame {
     private void initComponents() {
 
         jMenuBar1 = new javax.swing.JMenuBar();
-        jMenu1 = new javax.swing.JMenu();
-        jMenuItem1 = new javax.swing.JMenuItem();
-        jMenuItem3 = new javax.swing.JMenuItem();
-        jMenu2 = new javax.swing.JMenu();
+        menuFile = new javax.swing.JMenu();
+        menuItemOpen = new javax.swing.JMenuItem();
+        menuItemExit = new javax.swing.JMenuItem();
+        menuConfiguration = new javax.swing.JMenu();
+        menuItemNoWait = new javax.swing.JCheckBoxMenuItem();
+        menuItemNoSound = new javax.swing.JCheckBoxMenuItem();
+        menuItemHold = new javax.swing.JCheckBoxMenuItem();
+        menuHelp = new javax.swing.JMenu();
         jMenuItem2 = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jMenu1.setMnemonic('F');
-        jMenu1.setText("File");
+        menuFile.setMnemonic('F');
+        menuFile.setText("File");
 
-        jMenuItem1.setMnemonic('O');
-        jMenuItem1.setText("Open");
-        jMenuItem1.addActionListener(new java.awt.event.ActionListener() {
+        menuItemOpen.setMnemonic('O');
+        menuItemOpen.setText("Open");
+        menuItemOpen.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jMenuItem1ActionPerformed(evt);
+                menuItemOpenActionPerformed(evt);
             }
         });
-        jMenu1.add(jMenuItem1);
+        menuFile.add(menuItemOpen);
 
-        jMenuItem3.setMnemonic('X');
-        jMenuItem3.setText("Exit");
-        jMenuItem3.addActionListener(new java.awt.event.ActionListener() {
+        menuItemExit.setMnemonic('X');
+        menuItemExit.setText("Exit");
+        menuItemExit.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jMenuItem3ActionPerformed(evt);
+                menuItemExitActionPerformed(evt);
             }
         });
-        jMenu1.add(jMenuItem3);
+        menuFile.add(menuItemExit);
 
-        jMenuBar1.add(jMenu1);
+        jMenuBar1.add(menuFile);
 
-        jMenu2.setMnemonic('H');
-        jMenu2.setText("Help");
+        menuConfiguration.setMnemonic('C');
+        menuConfiguration.setText("Configuration");
+
+        menuItemNoWait.setMnemonic('W');
+        menuItemNoWait.setText("No wait");
+        menuConfiguration.add(menuItemNoWait);
+
+        menuItemNoSound.setMnemonic('S');
+        menuItemNoSound.setText("No sound");
+        menuConfiguration.add(menuItemNoSound);
+
+        menuItemHold.setMnemonic('H');
+        menuItemHold.setText("Hold");
+        menuConfiguration.add(menuItemHold);
+
+        jMenuBar1.add(menuConfiguration);
+
+        menuHelp.setMnemonic('H');
+        menuHelp.setText("Help");
 
         jMenuItem2.setMnemonic('A');
         jMenuItem2.setText("About");
@@ -86,9 +107,9 @@ public class UserInterface extends javax.swing.JFrame {
                 jMenuItem2ActionPerformed(evt);
             }
         });
-        jMenu2.add(jMenuItem2);
+        menuHelp.add(jMenuItem2);
 
-        jMenuBar1.add(jMenu2);
+        jMenuBar1.add(menuHelp);
 
         setJMenuBar(jMenuBar1);
 
@@ -106,37 +127,45 @@ public class UserInterface extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem1ActionPerformed
+    private void menuItemOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuItemOpenActionPerformed
         JFileChooser fc = getFileChooser();
         int result = fc.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fc.getSelectedFile();
+            boolean nowait  = menuItemNoWait.isSelected();
+            boolean nosound = menuItemNoSound.isSelected();
+            boolean hold    = menuItemHold.isSelected();
             Configuration configuration = new Configuration(false, false, false); // TODO set configuration via menu
             try {
-                Main.execBasiCode(selectedFile.getPath(), configuration);
+                Engine engine = new Engine();
+                engine.execBasiCode(selectedFile.getPath(), configuration);
             }
             catch (Throwable ex) {
                 Logger.getLogger(UserInterface.class.getName()).log(Level.SEVERE, null, ex);
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Exception occurred", JOptionPane.ERROR_MESSAGE);
             }
         }
-    }//GEN-LAST:event_jMenuItem1ActionPerformed
+    }//GEN-LAST:event_menuItemOpenActionPerformed
 
     private void jMenuItem2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem2ActionPerformed
         JOptionPane.showMessageDialog(this, "Java-BasiCode\nVersion " + VERSION + "\n\nDr. Michael Haupt", "About Java-BasiCode", JOptionPane.INFORMATION_MESSAGE);
     }//GEN-LAST:event_jMenuItem2ActionPerformed
 
-    private void jMenuItem3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem3ActionPerformed
+    private void menuItemExitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuItemExitActionPerformed
         System.exit(0);
-    }//GEN-LAST:event_jMenuItem3ActionPerformed
+    }//GEN-LAST:event_menuItemExitActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JMenu jMenu1;
-    private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
-    private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JMenuItem jMenuItem2;
-    private javax.swing.JMenuItem jMenuItem3;
+    private javax.swing.JMenu menuConfiguration;
+    private javax.swing.JMenu menuFile;
+    private javax.swing.JMenu menuHelp;
+    private javax.swing.JMenuItem menuItemExit;
+    private javax.swing.JCheckBoxMenuItem menuItemHold;
+    private javax.swing.JCheckBoxMenuItem menuItemNoSound;
+    private javax.swing.JCheckBoxMenuItem menuItemNoWait;
+    private javax.swing.JMenuItem menuItemOpen;
     // End of variables declaration//GEN-END:variables
 
     private JFileChooser fileChooser = null;
