@@ -1,12 +1,11 @@
 package de.haupz.basicode;
 
+import static de.haupz.basicode.Main.bc;
 import de.haupz.basicode.interpreter.Configuration;
 import de.haupz.basicode.ui.BasicContainer;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.io.File;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
@@ -19,20 +18,34 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  */
 public class UserInterface extends javax.swing.JFrame {
 
-    private static final String VERSION = "1.1";
+    private static final String VERSION = "1.0";
+    
+    private final Parameters params;
     
     /**
-     * Creates new form UserInterface
+     * Creates new form UserInterface.
      * @param bc BasicContainer
+     * @param params basicode parameters from the commandline
      */
-    public UserInterface(BasicContainer bc) {
+    public UserInterface(BasicContainer bc, Parameters params) {
         super("BASICODE");
+        this.params = params;
         initComponents();
+        initConfig();
         Container cp = getContentPane();
         cp.add(bc);
         Dimension size = new Dimension(BasicContainer.WIDTH + 16, BasicContainer.HEIGHT + jMenuBar1.getHeight() + 39);
         setSize(size);
         addKeyListener(bc.makeKeyListener());
+    }
+    
+    /**
+     * Initializes form elements according to the paramters.
+     */
+    private void initConfig() {
+        menuItemNoWait.setSelected(params.isNoWait());
+        menuItemNoSound.setSelected(params.isNoSound());
+        menuItemHold.setSelected(params.isHold());
     }
 
     /**
@@ -92,6 +105,7 @@ public class UserInterface extends javax.swing.JFrame {
         menuConfiguration.add(menuItemNoSound);
 
         menuItemHold.setMnemonic('H');
+        menuItemHold.setSelected(true);
         menuItemHold.setText("Hold");
         menuConfiguration.add(menuItemHold);
 
@@ -135,15 +149,14 @@ public class UserInterface extends javax.swing.JFrame {
             boolean nowait  = menuItemNoWait.isSelected();
             boolean nosound = menuItemNoSound.isSelected();
             boolean hold    = menuItemHold.isSelected();
-            Configuration configuration = new Configuration(false, false, false); // TODO set configuration via menu
-            try {
-                Engine engine = new Engine();
-                engine.execBasiCode(selectedFile.getPath(), configuration);
-            }
-            catch (Throwable ex) {
-                Logger.getLogger(UserInterface.class.getName()).log(Level.SEVERE, null, ex);
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Exception occurred", JOptionPane.ERROR_MESSAGE);
-            }
+            Configuration configuration = new Configuration(nowait, nosound, hold);
+            
+            Engine engine = new Engine(selectedFile.getPath(), configuration);
+            engine.execute();
+            
+            bc.shutdown();
+    //        bf.dispose();
+    //        ui.dispose();
         }
     }//GEN-LAST:event_menuItemOpenActionPerformed
 
@@ -186,7 +199,7 @@ public class UserInterface extends javax.swing.JFrame {
             fileChooser.setDialogTitle("Open BASICODE file");
             
 //            if (config.getSvgPath() != null) {
-//                fileChooser.setCurrentDirectory(new File(config.getSvgPath()));
+            fileChooser.setCurrentDirectory(new File("D:\\Temp")); // TODO current directory
 //            }
         }
         

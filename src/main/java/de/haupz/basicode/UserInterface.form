@@ -51,6 +51,7 @@
             <MenuItem class="javax.swing.JCheckBoxMenuItem" name="menuItemHold">
               <Properties>
                 <Property name="mnemonic" type="int" value="72"/>
+                <Property name="selected" type="boolean" value="true"/>
                 <Property name="text" type="java.lang.String" value="Hold"/>
               </Properties>
             </MenuItem>

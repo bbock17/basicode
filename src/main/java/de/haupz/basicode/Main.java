@@ -31,16 +31,14 @@ public class Main {
      * @throws Throwable in case anything goes wrong
      */
     public static void main(String[] args) throws Throwable {
-        boolean nowait = false;
-        boolean nosound = false;
-        boolean hold = false;
-        String filename = "";
+        Parameters params = new Parameters();
+        
         for (String arg : args) {
             switch (arg) {
-                case "-nowait" -> nowait = true;
-                case "-nosound" -> nosound = true;
-                case "-hold" -> hold = true;
-                default -> filename = arg;
+                case "-nowait"  -> params.setNoWait(true);
+                case "-nosound" -> params.setNoSound(true);
+                case "-hold"    -> params.setHold(true);
+                default         -> params.setFilename(arg);
             }
         }
 
@@ -48,10 +46,10 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
 //            bf = new BasicFrame(bc);
 //            bf.setVisible(true);
-            ui = new UserInterface(bc);
+            ui = new UserInterface(bc, params);
             ui.setVisible(true);
         });
-
+/*
         if (!filename.isEmpty()) {
             Configuration configuration = new Configuration(nowait, nosound, hold);
             Engine engine = new Engine();
@@ -62,5 +60,6 @@ public class Main {
 //        ui.dispose();
         }
     }
-
+*/
+    }
 }

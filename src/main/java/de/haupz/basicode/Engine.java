@@ -10,41 +10,74 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.swing.SwingWorker;
 
 /**
  * The BasiCode engine.
  *
  * @author Bernd Bock <chef@bernd-bock.de>
  */
-public class Engine {
+public class Engine extends SwingWorker {
+    
+    private final Configuration config;
+    private final String filename;
+    
     /**
-     * Run a BASICODE program.
+     * Constructor.
+     * @param filename the filename of the BASICODE program
+     * @param config the configuration for the interpreter
+     */
+    public Engine(String filename, Configuration config) {
+        super();
+        this.filename = filename;
+        this.config = config;
+    }
+    
+    @Override
+    protected String doInBackground() throws Exception {
+        try {
+            execBasiCode();
+        }
+        catch (Throwable ex) {
+            Logger.getLogger(Engine.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        return null;
+    }
+
+    @Override
+    protected void done() {
+        // update the GUI after the work is done
+        System.out.println("Worker is done");
+    }
+
+    /**
+     * Run a BasiCode program.
      *
      * @param code the source code to run, as a string.
-     * @param configuration the configuration for the interpreter.
      * @throws Throwable in case anything goes wrong.
      */
-    public void run(String code, Configuration configuration) throws Throwable {
+    private void run(String code) throws Throwable {
         final BasicParser parser = new BasicParser(new StringReader(code));
         ProgramNode prog = parser.program();
-        InterpreterState state = new InterpreterState(prog, bc, bc, configuration);
+        InterpreterState state = new InterpreterState(prog, bc, bc, config);
         bc.registerStopKeyHandler(() -> state.terminate());
         prog.run(state);
         state.closeFiles();
     }
 
     /**
-     * Executes a BASICODE program from a file.
+     * Executes a BasiCode program from a file.
      * 
-     * @param filename the filename of the BASICODE program
-     * @param configuration the configuration for the interpreter
      * @throws Throwable in case anything goes wrong
      */
-    public void execBasiCode(String filename, Configuration configuration) throws Throwable {
-            Path path = Paths.get(filename);
-            List<String> sourceLines = Files.readAllLines(path);
-            String source = sourceLines.stream().collect(Collectors.joining("\n"));
-            run(source, configuration);
+    private void execBasiCode() throws Throwable {
+        Path path = Paths.get(filename);
+        List<String> sourceLines = Files.readAllLines(path);
+        String source = sourceLines.stream().collect(Collectors.joining("\n"));
+        run(source);
     }
 }
